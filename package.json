@@ -1,12 +1,12 @@
 {
-  "name": "rahti2-docker-node",
+  "name": "order-service-sprint2",
   "version": "1.0.0",
-  "description": "Note: OpenShift wants the main branch to be named *master* by default, you have two options:\r 1. Push to origin/master to deploy\r 2. Change the setting in Openshift to *main*:    \r     Edit BuildConfig ==> Show advanced git options ==> Git reference: `main`",
-  "main": "src/server.js",
+  "description": "Minimal order-service backend for Sprint 2 — hardcoded placeholders + live endpoint",
+  "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/server.js",
-    "dev": "nodemon -L src/server.js"
+    "start": "node src/index.js",
+    "dev": "nodemon -L src/index.js"
   },
   "repository": {
     "type": "git",
