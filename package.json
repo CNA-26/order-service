@@ -1,0 +1,29 @@
+{
+  "name": "order-service-sprint2",
+  "version": "1.0.0",
+  "description": "Minimal order-service backend for Sprint 2 — hardcoded placeholders + live endpoint",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.js",
+    "dev": "nodemon -L src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fw-teaching/rahti2-docker-node.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fw-teaching/rahti2-docker-node/issues"
+  },
+  "homepage": "https://github.com/fw-teaching/rahti2-docker-node#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

@@ -1,0 +1,71 @@
+# VS Code REST Client demo for Order Service (Sprint 3 BETA)
+
+@baseUrl = https://order-service-git-order-service.2.rahtiapp.fi
+@apiKey = dev-key-12345
+
+###
+# Health
+GET {{baseUrl}}/health
+Accept: application/json
+
+###
+# Ready
+GET {{baseUrl}}/ready
+Accept: application/json
+
+###
+# List orders
+GET {{baseUrl}}/api/v1/orders
+Accept: application/json
+
+###
+# List orders (limit=1)
+GET {{baseUrl}}/api/v1/orders?limit=1
+Accept: application/json
+
+###
+# Get order by id (existing placeholder)
+GET {{baseUrl}}/api/v1/orders/order_001
+Accept: application/json
+
+###
+# Create order (should FAIL without API key)
+POST {{baseUrl}}/api/v1/orders
+Content-Type: application/json
+Accept: application/json
+
+{
+  "product_id": "plant_001",
+  "product_name": "Monstera Deliciosa",
+  "quantity": 1,
+  "price_cents": 2999,
+  "currency": "SEK",
+  "owner_user_id": "user::liquid_01"
+}
+
+###
+# Create order (should SUCCEED with API key)
+POST {{baseUrl}}/api/v1/orders
+Content-Type: application/json
+Accept: application/json
+X-API-Key: {{apiKey}}
+
+{
+  "product_id": "plant_001",
+  "product_name": "Monstera Deliciosa",
+  "quantity": 1,
+  "price_cents": 2999,
+  "currency": "SEK",
+  "owner_user_id": "user::liquid_01"
+}
+
+###
+# Update status (replace order id)
+PATCH {{baseUrl}}/api/v1/orders/order_1771697411539/status
+Content-Type: application/json
+Accept: application/json
+X-API-Key: {{apiKey}}
+
+{
+  "status": "shipped"
+}
