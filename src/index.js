@@ -4,7 +4,9 @@ const { ITEMS } = require("./data/placeholders");
 const { requireApiKey } = require("./middleware/apiKeyAuth");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+
+// Rahti/OpenShift commonly routes to 8080; still respects PORT if set
+const PORT = process.env.PORT || 8080;
 
 // In-memory "database" for Sprint 3 BETA (until real DB is available)
 const ORDERS = [...ITEMS];
@@ -23,7 +25,7 @@ app.get("/health", (req, res) => {
 
 // GET all orders (placeholder/in-memory)
 app.get("/api/v1/orders", (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || ORDERS.length, ORDERS.length);
+  const limit = Math.min(parseInt(req.query.limit, 10) || ORDERS.length, ORDERS.length);
   res.json({
     meta: {
       count: ORDERS.length,
@@ -53,7 +55,6 @@ app.post("/api/v1/orders", requireApiKey, (req, res) => {
     owner_user_id
   } = req.body || {};
 
-  // Basic validation
   const missing = [];
   if (!product_name) missing.push("product_name");
   if (quantity === undefined || quantity === null) missing.push("quantity");
@@ -77,7 +78,8 @@ app.post("/api/v1/orders", requireApiKey, (req, res) => {
     quantity: Number(quantity),
     price_cents: Number(price_cents),
     currency,
-    production_code: production_code || `PC-2026-DEMO-${String(ORDERS.length + 1).padStart(4, "0")}`,
+    production_code:
+      production_code || `PC-2026-DEMO-${String(ORDERS.length + 1).padStart(4, "0")}`,
     owner_user_id,
     status: "created",
     created_at: nowIso
