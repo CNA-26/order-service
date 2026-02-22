@@ -169,13 +169,13 @@ app.get("/ready", (req, res) => {
   res.json({ ready: true });
 });
 
+app.get("/version", (req, res) => {
+  res.json({ version: "ORDER-API-2026-02-22", now: new Date().toISOString() });
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
-});
-
-app.get("/version", (req, res) => {
-  res.json({ version: "ORDER-API-2026-02-22", now: new Date().toISOString() });
 });
 
 app.listen(PORT, () => {
