@@ -1,15 +1,12 @@
 const express = require("express");
 const cors = require("cors");
-const { ITEMS } = require("./data/placeholders");
 const { requireApiKey } = require("./middleware/apiKeyAuth");
+const { pool } = require("./db");
 
 const app = express();
 
 // Rahti/OpenShift commonly routes to 8080; still respects PORT if set
 const PORT = process.env.PORT || 8080;
-
-// In-memory "database" for Sprint 3 BETA (until real DB is available)
-const ORDERS = [...ITEMS];
 
 // Enable CORS by default (set ENABLE_CORS=false to disable)
 if (process.env.ENABLE_CORS !== "false") {
@@ -23,91 +20,91 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", uptime_seconds: process.uptime() });
 });
 
-// GET all orders (placeholder/in-memory)
-app.get("/api/v1/orders", (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit, 10) || ORDERS.length, ORDERS.length);
-  res.json({
-    meta: {
-      count: ORDERS.length,
-      returned: limit,
-      environment: process.env.NODE_ENV || "development"
-    },
-    data: ORDERS.slice(0, limit)
-  });
-});
+/**
+ * POST create order (DB-backed)
+ * Expects body:
+ * {
+ *   customer, delivery, payment, items[], totals?, timestamp?
+ * }
+ */
+app.post("/api/v1/orders", requireApiKey, async (req, res) => {
+  const { customer, delivery, payment, items, totals, timestamp } = req.body || {};
 
-// GET single order by id
-app.get("/api/v1/orders/:id", (req, res) => {
-  const item = ORDERS.find(i => i.id === req.params.id);
-  if (!item) return res.status(404).json({ error: "Order not found" });
-  res.json({ data: item });
-});
+  // Minimal validation
+  if (!customer?.email) return res.status(400).json({ error: "customer.email is required" });
+  if (!delivery?.method) return res.status(400).json({ error: "delivery.method is required" });
+  if (!payment?.method) return res.status(400).json({ error: "payment.method is required" });
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: "items must be a non-empty array" });
+  }
 
-// POST create order (Sprint 3 BETA, in-memory until DB is available)
-app.post("/api/v1/orders", requireApiKey, (req, res) => {
-  const {
-    id: product_id,
-    name: product_name,
-    price: price_cents,
-    qty: quantity,
-    owner_user_id
-  } = req.body || {};
+  for (const [i, it] of items.entries()) {
+    if (!it?.id) return res.status(400).json({ error: `items[${i}].id is required` });
+    if (!it?.name) return res.status(400).json({ error: `items[${i}].name is required` });
+    if (it.price === undefined || it.price === null) {
+      return res.status(400).json({ error: `items[${i}].price is required` });
+    }
+    if (!Number.isFinite(Number(it.quantity)) || Number(it.quantity) <= 0) {
+      return res.status(400).json({ error: `items[${i}].quantity must be >= 1` });
+    }
+  }
 
-  const missing = [];
-  if (!product_name) missing.push("product_name");
-  if (quantity === undefined || quantity === null) missing.push("quantity");
-  if (price_cents === undefined || price_cents === null) missing.push("price_cents");
-  if (!owner_user_id) missing.push("owner_user_id");
+  // Generate order number on backend
+  const orderNumber = `ORD-${Date.now()}`;
 
-  if (missing.length) {
-    return res.status(400).json({
-      error: "Missing required fields",
-      required: missing
+  // Recalculate totals server-side (don’t trust client)
+  const subtotal = items.reduce((sum, it) => sum + Number(it.price) * Number(it.quantity), 0);
+  const deliveryCost = totals?.deliveryCost != null ? Number(totals.deliveryCost) : 0;
+  const total = subtotal + deliveryCost;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const orderInsert = await client.query(
+      `INSERT INTO orders (order_number, status, customer, delivery, payment, totals, timestamp)
+       VALUES ($1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6::jsonb, $7::timestamptz)
+       RETURNING id, order_number, status, created_at`,
+      [
+        orderNumber,
+        "created",
+        JSON.stringify(customer),
+        JSON.stringify(delivery),
+        JSON.stringify(payment),
+        JSON.stringify({ subtotal, deliveryCost, total }),
+        timestamp ? new Date(timestamp).toISOString() : null
+      ]
+    );
+
+    const order = orderInsert.rows[0];
+
+    for (const it of items) {
+      await client.query(
+        `INSERT INTO order_items (order_id, product_id, product_name, unit_price, quantity)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [order.id, String(it.id), String(it.name), Number(it.price), Number(it.quantity)]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        id: order.id,
+        orderNumber: order.order_number,
+        status: order.status,
+        createdAt: order.created_at,
+        totals: { subtotal, deliveryCost, total }
+      }
     });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Create order DB error:", err);
+    return res.status(500).json({ error: "Failed to create order" });
+  } finally {
+    client.release();
   }
-
-  const nowIso = new Date().toISOString();
-  const id = `order_${Date.now()}`;
-
-  const newOrder = {
-    id,
-    product_id: product_id || null,
-    product_name,
-    quantity: Number(quantity),
-    price_cents: Number(price_cents),
-    owner_user_id,
-    status: "created",
-    created_at: nowIso
-  };
-
-  ORDERS.push(newOrder);
-
-  return res.status(201).json({
-    success: true,
-    data: newOrder
-  });
-});
-
-// PATCH update order status (Sprint 3 BETA, in-memory until DB is available)
-app.patch("/api/v1/orders/:id/status", requireApiKey, (req, res) => {
-  const { status } = req.body || {};
-
-  if (!status) {
-    return res.status(400).json({ error: "Missing required field: status" });
-  }
-
-  const order = ORDERS.find(o => o.id === req.params.id);
-  if (!order) {
-    return res.status(404).json({ error: "Order not found" });
-  }
-
-  order.status = status;
-  order.updated_at = new Date().toISOString();
-
-  return res.json({
-    success: true,
-    data: order
-  });
 });
 
 // Simple healthcheck for readiness (optional)
