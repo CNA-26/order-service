@@ -46,12 +46,10 @@ app.get("/api/v1/orders/:id", (req, res) => {
 // POST create order (Sprint 3 BETA, in-memory until DB is available)
 app.post("/api/v1/orders", requireApiKey, (req, res) => {
   const {
-    product_id,
-    product_name,
-    quantity,
-    price_cents,
-    currency = "SEK",
-    production_code,
+    id: product_id,
+    name: product_name,
+    price: price_cents,
+    qty: quantity,
     owner_user_id
   } = req.body || {};
 
@@ -77,9 +75,6 @@ app.post("/api/v1/orders", requireApiKey, (req, res) => {
     product_name,
     quantity: Number(quantity),
     price_cents: Number(price_cents),
-    currency,
-    production_code:
-      production_code || `PC-2026-DEMO-${String(ORDERS.length + 1).padStart(4, "0")}`,
     owner_user_id,
     status: "created",
     created_at: nowIso
