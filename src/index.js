@@ -117,6 +117,10 @@ app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
+app.get("/version", (req, res) => {
+  res.json({ version: "NEW-DEPLOY-2026-02-22", now: new Date().toISOString() });
+});
+
 app.listen(PORT, () => {
   console.log(`Order service listening on port ${PORT}`);
 });
