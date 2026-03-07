@@ -44,7 +44,14 @@ return res.rows
 async function addItems() {
   const items = `INSERT INTO public.order_items
 (order_id, product_id, product_name, unit_price, quantity)
-FROM jsonb_to_recordset($1, $2, $3, $4, $5);`
+SELECT $1, product_id, product_name, unit_price, quantity
+FROM jsonb_to_recordset($2::jsonb)
+AS x(
+product_id int,
+product_name text,
+unit_price int,
+quantity int
+);`
 //jsonb_to_recordset is used to convert json object of items into different rows using postgres
 const values = [
   order_id, product_id, product_name, unit_price, quantity
